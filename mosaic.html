@@ -1,11 +1,32 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <script type="text/javascript" src="js/mosaic.js"></script>
-    <script type="text/javascript" src="js/client.js"></script>
-    <title>Mosaic</title>
-  </head>
-  <body>
-    <!-- Edit me. -->
-  </body>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Mosaic</title>
+        <style>
+            label {
+                display: block;
+            }
+            .error {
+                color: red;
+            }
+        </style>
+    </head>
+    <body>
+
+        <h1>Mosaic</h1>
+
+        <div class="form">
+            <div class="form-field">
+                <label for="imageInput">Upload an image</label>
+                <input id="imageInput" type="file" name="image_file" accept=".gif,.jpg,.jpeg,.png"/>
+            </div>
+            <div id="errorMessage" class="error"></div>
+        </div>
+
+        <script src="js/mosaic.js"></script>
+        <script src="js/client.js"></script>
+
+    </body>
 </html>
