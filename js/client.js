@@ -147,17 +147,39 @@ function createDisplayer(elem) {
     };
 }
 
-function createRowAppender(elem) {
-    return function (items) {
+function createRowAdder(elem) {
+
+    var cache, nextRow, appendRow;
+
+    cache = [];
+    nextRow = 0;
+
+    appendRow = function (content) {
         var div = document.createElement('div');
-        div.innerHTML = Array.isArray(items) ? items.join('') : items;
+        div.innerHTML = Array.isArray(content) ? content.join('') : content;
         elem.appendChild(div);
     };
+
+    return function (content, rowNumber) {
+
+        cache[rowNumber] = content;
+
+        if (rowNumber === nextRow) {
+
+            while (cache[nextRow]) {
+                appendRow(cache[nextRow]);
+                nextRow += 1;
+            }
+
+        }
+
+    };
+
 }
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    var input, output, displayError, appendRow;
+    var input, output, displayError, addRow;
 
     input = document.querySelector('#imageInput');
     output = document.querySelector('#imageOutput');
@@ -165,23 +187,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     receiveInput(input)
         .then(function (image) {
-            appendRow = createRowAppender(output);
+            addRow = createRowAdder(output);
             displayError('');
             return image;
         })
         .then(readImage)
         .then(constructColorMatrix)
-        .then(function handleMatrix(colorMatrix) {
-
-            if (colorMatrix.length === 0) {
-                return;
-            }
-
-            fetchRow(colorMatrix[0]).then(function (r) {
-                appendRow(r);
-                handleMatrix(colorMatrix.slice(1));
+        .then(function (colorMatrix) {
+            colorMatrix.forEach(function (row, index) {
+                fetchRow(row).then(function (tiles) {
+                    addRow(tiles, index);
+                });
             });
-
         })
         .catch(function (error) {
             displayError(error);
