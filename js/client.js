@@ -157,24 +157,29 @@ function createRowAppender(elem) {
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    var input, output, displayError;
+    var input, output, displayError, appendRow;
 
     input = document.querySelector('#imageInput');
     output = document.querySelector('#imageOutput');
     displayError = createDisplayer(document.querySelector('#errorMessage'));
 
     receiveInput(input)
+        .then(function (image) {
+            appendRow = createRowAppender(output);
+            displayError('');
+            return image;
+        })
         .then(readImage)
         .then(constructColorMatrix)
-        .then(function (colorMatrix) {
+        .then(function handleMatrix(colorMatrix) {
 
-            var appendRow = createRowAppender(output);
-            displayError('');
+            if (colorMatrix.length === 0) {
+                return;
+            }
 
-            colorMatrix.forEach(function (row) {
-                fetchRow(row).then(function (r) {
-                    appendRow(r);
-                });
+            fetchRow(colorMatrix[0]).then(function (r) {
+                appendRow(r);
+                handleMatrix(colorMatrix.slice(1));
             });
 
         })
