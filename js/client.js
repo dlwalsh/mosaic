@@ -1,6 +1,32 @@
 var TILE_WIDTH = TILE_WIDTH || 16;
 var TILE_HEIGHT = TILE_HEIGHT || 16;
 
+function receiveInput(input) {
+
+    var promise = new Promise(function (resolve, reject) {
+
+        input.addEventListener('change', function (event) {
+
+            var files = input.files;
+
+            if (!files || files.length === 0) {
+                reject('No file uploaded');
+            }
+
+            if (!/^image\//.test(files[0].type)) {
+                reject('File is not an image');
+            }
+
+            resolve(files[0]);
+
+        });
+
+    });
+
+    return promise;
+
+}
+
 function readImage(file) {
 
     var reader, promise;
@@ -28,22 +54,35 @@ function readImage(file) {
 
 function constructColorMatrix(image) {
 
-    var promise = new Promise(function (resolve, reject) {
+    var width, height, promise;
+
+    width = image.width;
+    height = image.height;
+
+    promise = new Promise(function (resolve, reject) {
 
         image.addEventListener('load', function (event) {
 
-            var ctx, x, y, row, matrix;
+            var canvas, ctx, x, y, row, matrix;
 
-            ctx = document.createElement('canvas').getContext('2d');
+            canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            ctx = canvas.getContext('2d');
             ctx.drawImage(image, 0, 0);
 
             matrix = [];
 
-            for (x = 0; x < image.width; x += TILE_WIDTH) {
+            for (y = 0; y < height; y += TILE_HEIGHT) {
                 row = [];
-                for (y = 0; y < image.height; y += TILE_HEIGHT) {
+                for (x = 0; x < width; x += TILE_WIDTH) {
                     row.push(averageColor(
-                        ctx.getImageData(x, y, TILE_WIDTH, TILE_HEIGHT).data
+                        ctx.getImageData(
+                            x, y,
+                            Math.min(TILE_WIDTH, width - x),
+                            Math.min(TILE_HEIGHT, height - y)
+                        ).data
                     ));
                 }
                 matrix.push(row);
@@ -56,6 +95,24 @@ function constructColorMatrix(image) {
     });
 
     return promise;
+
+}
+
+function fetchRow(colorRow) {
+
+    var promises = colorRow.map(fetchTile);
+
+    return Promise.all(promises);
+
+}
+
+function fetchTile(color) {
+
+    var url = '/color/' + color;
+
+    return fetch(url).then(function (response) {
+        return response.text();
+    });
 
 }
 
@@ -79,7 +136,7 @@ function averageColor(bytes) {
     return rgbSum.map(function (sum) {
         var average = Math.round(sum * INCREMENT / bytes.length);
         var hex = average.toString(16);
-        return average < 0x0F ? '0' + hex : hex;
+        return average <= 0x0F ? '0' + hex : hex;
     }).join('');
 
 }
@@ -90,32 +147,39 @@ function createDisplayer(elem) {
     };
 }
 
+function createRowAppender(elem) {
+    return function (items) {
+        var div = document.createElement('div');
+        div.innerHTML = Array.isArray(items) ? items.join('') : items;
+        elem.appendChild(div);
+    };
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
-    var input = document.querySelector('#imageInput');
-    var displayError = createDisplayer(document.querySelector('#errorMessage'));
+    var input, output, displayError;
 
-    input.addEventListener('change', function (event) {
+    input = document.querySelector('#imageInput');
+    output = document.querySelector('#imageOutput');
+    displayError = createDisplayer(document.querySelector('#errorMessage'));
 
-        var files = event.target.files;
+    receiveInput(input)
+        .then(readImage)
+        .then(constructColorMatrix)
+        .then(function (colorMatrix) {
 
-        if (!files || files.length === 0) {
-            displayError('No file uploaded');
-            return;
-        }
+            var appendRow = createRowAppender(output);
+            displayError('');
 
-        if (!/^image\//.test(files[0].type)) {
-            displayError('File is not an image');
-            return;
-        }
-
-        displayError('');
-        readImage(files[0])
-            .then(constructColorMatrix)
-            .then(function (colorMatrix) {
-                console.log(colorMatrix);
+            colorMatrix.forEach(function (row) {
+                fetchRow(row).then(function (r) {
+                    appendRow(r);
+                });
             });
 
-    });
+        })
+        .catch(function (error) {
+            displayError(error);
+        });
 
 });
