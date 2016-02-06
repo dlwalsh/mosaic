@@ -37,7 +37,10 @@ http.createServer(function (req, res) {
             return;
         }
     } else if (m = pathname.match(/^\/color\/([0-9a-fA-F]{6})/)) {
-        res.writeHead(200, {'Content-Type': 'image/svg+xml'});
+        res.writeHead(200, {
+            'Content-Type': 'image/svg+xml',
+            'Cache-Control': 'max-age=31536000'
+        });
         res.write(util.format(svgTemplate, mosaic.TILE_WIDTH, mosaic.TILE_HEIGHT, m[1]));
         res.end();
         return;
