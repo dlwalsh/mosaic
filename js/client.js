@@ -1,40 +1,61 @@
 var TILE_WIDTH = TILE_WIDTH || 16;
 var TILE_HEIGHT = TILE_HEIGHT || 16;
 
-function readImage(file, callback) {
+function readImage(file) {
 
-    var reader = new FileReader();
+    var reader, promise;
 
-    reader.addEventListener('load', function (readerEvent) {
+    reader = new FileReader();
 
-        var image = new Image();
-        image.src = readerEvent.target.result;
+    promise = new Promise(function (resolve, reject) {
 
-        image.addEventListener('load', function (imageEvent) {
+        reader.addEventListener('load', function (event) {
 
-            var ctx, h, w, img, row, matrix;
+            var image = new Image();
+            image.src = reader.result;
 
-            img = imageEvent.target;
-            ctx = document.createElement('canvas').getContext('2d');
-            ctx.drawImage(img, 0, 0);
-
-            matrix = [];
-
-            for (w = 0; w < img.width; w += TILE_WIDTH) {
-                row = [];
-                for (h = 0; h < img.height; h += TILE_HEIGHT) {
-                    row.push(averageColor(ctx.getImageData(w, h, TILE_WIDTH, TILE_HEIGHT).data));
-                }
-                matrix.push(row);
-            }
-
-            callback(matrix);
+            resolve(image);
 
         });
 
     });
 
     reader.readAsDataURL(file);
+
+    return promise;
+
+}
+
+function createPixelMatrix(image) {
+
+    var promise = new Promise(function (resolve, reject) {
+
+        image.addEventListener('load', function (event) {
+
+            var ctx, x, y, row, matrix;
+
+            ctx = document.createElement('canvas').getContext('2d');
+            ctx.drawImage(image, 0, 0);
+
+            matrix = [];
+
+            for (x = 0; x < image.width; x += TILE_WIDTH) {
+                row = [];
+                for (y = 0; y < image.height; y += TILE_HEIGHT) {
+                    row.push(averageColor(
+                        ctx.getImageData(x, y, TILE_WIDTH, TILE_HEIGHT).data
+                    ));
+                }
+                matrix.push(row);
+            }
+
+            resolve(matrix);
+
+        });
+
+    });
+
+    return promise;
 
 }
 
@@ -89,9 +110,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         displayError('');
-        readImage(files[0], function (colorMatrix) {
-            console.log(colorMatrix);
-        });
+        readImage(files[0])
+            .then(createPixelMatrix)
+            .then(function (colorMatrix) {
+                console.log(colorMatrix);
+            });
 
     });
 
