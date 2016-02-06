@@ -26,7 +26,7 @@ function readImage(file) {
 
 }
 
-function createPixelMatrix(image) {
+function constructColorMatrix(image) {
 
     var promise = new Promise(function (resolve, reject) {
 
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         displayError('');
         readImage(files[0])
-            .then(createPixelMatrix)
+            .then(constructColorMatrix)
             .then(function (colorMatrix) {
                 console.log(colorMatrix);
             });
