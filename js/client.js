@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Print the color matrix, row by row
             //
-            // Only fetch the first and print the first row,
+            // Only fetch and print the first row,
             // recursively fetch and print the rest
             fetchRow(colorMatrix[0]).then(function (content) {
                 appendRow(content);
