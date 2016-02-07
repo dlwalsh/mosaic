@@ -8,7 +8,7 @@ To run the app, you must have a Node environment. From the command line, execute
 
 Then go to http://localhost:8765/
 
-Provide an image for the file input (png, jpg and non-animated gif files are cceptable). Then watch as the mosaic is painted, row by row.
+Provide an image for the file input. Acceptable formats include png, jpg and non-animated gif files. Then watch as the mosaic is painted, row by row.
 
 ## Known Limitations
 
