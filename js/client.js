@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(constructColorMatrix)
         .then(function handleRow(colorMatrix) {
 
-            // stop when there's now more rows to print
+            // stop when there's no more rows to print
             if (colorMatrix.length === 0) {
                 return;
             }
