@@ -32,10 +32,10 @@ function receiveInput(input) {
 }
 
 /**
- * Given an File object,
- * a promise is returned which resolves to a HTMLImageElement
+ * Given a File object,
+ * a promise is returned which resolves to its contents
  */
-function readImage(file) {
+function readFile(file) {
 
     var reader, promise;
 
@@ -45,10 +45,7 @@ function readImage(file) {
 
         reader.addEventListener('load', function (event) {
 
-            var image = new Image();
-            image.src = reader.result;
-
-            resolve(image);
+            resolve(reader.result);
 
         });
 
@@ -61,61 +58,75 @@ function readImage(file) {
 }
 
 /**
- * Given an HTMLImageElement,
- * a promise is returned which resolves to a two-dimensional array,
- * each entry containing the average hexadecimal colour of each tile
+ * Given image contents,
+ * a promise is returned which resolves to a HTMLImageElement
  */
-function constructColorMatrix(image) {
+function readImage(content) {
 
-    var width, height, promise;
+    var promise, image;
 
-    // Need to cache width and height of original image
-    // for the sake of the canvas drawn below
-    width = image.width;
-    height = image.height;
+    image = new Image();
+    image.src = content;
 
     promise = new Promise(function (resolve, reject) {
 
         image.addEventListener('load', function (event) {
 
-            var canvas, ctx, x, y, row, matrix;
-
-            // Use canvas API to convert the image into RGBA bitmap
-
-            canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-
-            ctx = canvas.getContext('2d');
-            ctx.drawImage(image, 0, 0);
-
-            // Construct a 2d array of colours
-            matrix = [];
-
-            for (y = 0; y < height; y += TILE_HEIGHT) {
-                row = [];
-                for (x = 0; x < width; x += TILE_WIDTH) {
-                    row.push(averageColor(
-                        // Slice the image at the particular tile we desire
-                        // Note that the size of the slice may need to be contained
-                        // to ensure it doesn't go outside the bounds of the image
-                        ctx.getImageData(
-                            x, y,
-                            Math.min(TILE_WIDTH, width - x),
-                            Math.min(TILE_HEIGHT, height - y)
-                        ).data
-                    ));
-                }
-                matrix.push(row);
-            }
-
-            resolve(matrix);
+            resolve(image);
 
         });
 
     });
 
     return promise;
+
+}
+
+/**
+ * Given an HTMLImageElement,
+ * a two-dimensional array is returned,
+ * each entry containing the average hexadecimal colour of each tile
+ */
+function constructColorMatrix(image) {
+
+    var canvas, ctx, x, y, row, matrix, width, height;
+
+    // Need to cache width and height of original image
+    // for the sake of the canvas drawn below
+    width = image.width;
+    height = image.height;
+
+    // Use canvas API to convert the image into RGBA bitmap
+
+    canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0);
+
+    // Construct a 2d array of colours
+    matrix = [];
+
+    for (y = 0; y < height; y += TILE_HEIGHT) {
+        row = [];
+        for (x = 0; x < width; x += TILE_WIDTH) {
+            row.push(averageColor(
+                // Slice the image at the particular tile we desire
+                // Note that the size of the slice may need to be contained
+                // to ensure it doesn't go outside the bounds of the image
+                ctx.getImageData(
+                    x, y,
+                    Math.min(TILE_WIDTH, width - x),
+                    Math.min(TILE_HEIGHT, height - y)
+                ).data
+            ));
+        }
+        matrix.push(row);
+    }
+
+
+    return matrix;
 
 }
 
@@ -198,6 +209,27 @@ function createRowAppender(elem) {
     };
 }
 
+function createRowHandler(appendRow) {
+
+    return function handleRow(colorMatrix) {
+
+        // stop when there's no more rows to print
+        if (colorMatrix.length === 0) {
+            return;
+        }
+
+        // Print the color matrix, row by row
+        //
+        // Only fetch and print the first row,
+        // recursively fetch and print the rest
+        fetchRow(colorMatrix[0]).then(function (content) {
+            appendRow(content);
+            handleRow(colorMatrix.slice(1));
+        });
+
+    };
+
+}
 document.addEventListener('DOMContentLoaded', function () {
 
     var input, output, displayError, appendRow;
@@ -205,32 +237,17 @@ document.addEventListener('DOMContentLoaded', function () {
     input = document.querySelector('#imageInput');
     output = document.querySelector('#imageOutput');
     displayError = createDisplayer(document.querySelector('#errorMessage'));
+    appendRow = createRowAppender(output);
 
     receiveInput(input)
         .then(function (image) {
-            appendRow = createRowAppender(output);
             displayError('');
             return image;
         })
+        .then(readFile)
         .then(readImage)
         .then(constructColorMatrix)
-        .then(function handleRow(colorMatrix) {
-
-            // stop when there's no more rows to print
-            if (colorMatrix.length === 0) {
-                return;
-            }
-
-            // Print the color matrix, row by row
-            //
-            // Only fetch and print the first row,
-            // recursively fetch and print the rest
-            fetchRow(colorMatrix[0]).then(function (content) {
-                appendRow(content);
-                handleRow(colorMatrix.slice(1));
-            });
-
-        })
+        .then(createRowHandler(appendRow))
         .catch(displayError);
 
 });
