@@ -221,6 +221,6 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(readImage)
         .then(constructColorRow)
         .then(createRowHandler(appendRow))
-        //.catch(displayError);
+        .catch(displayError);
 
 });
