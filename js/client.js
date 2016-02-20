@@ -84,12 +84,13 @@ function readImage(content) {
 
 /**
  * Given an HTMLImageElement,
- * a two-dimensional array is returned,
+ * returns an array of promises
  * each entry containing the average hexadecimal colour of each tile
  */
-function constructColorMatrix(image) {
+function constructColorRow(image) {
 
-    var canvas, ctx, x, y, row, matrix, width, height;
+    var canvas, ctx, matrix, width, height,
+        promiseArray, numberOfRows, numberOfCols;
 
     // Need to cache width and height of original image
     // for the sake of the canvas drawn below
@@ -105,28 +106,31 @@ function constructColorMatrix(image) {
     ctx = canvas.getContext('2d');
     ctx.drawImage(image, 0, 0);
 
-    // Construct a 2d array of colours
-    matrix = [];
+    numberOfRows = Math.ceil(height / TILE_HEIGHT);
+    numberOfCols = Math.ceil(width / TILE_WIDTH);
 
-    for (y = 0; y < height; y += TILE_HEIGHT) {
-        row = [];
-        for (x = 0; x < width; x += TILE_WIDTH) {
-            row.push(averageColor(
-                // Slice the image at the particular tile we desire
-                // Note that the size of the slice may need to be contained
-                // to ensure it doesn't go outside the bounds of the image
-                ctx.getImageData(
-                    x, y,
+    return Array.from(Array(numberOfRows)).map(function (row, rowNumber) {
+        // Slice the image at the particular tile we desire
+        // Note that the size of the slice may need to be contained
+        // to ensure it doesn't go outside the bounds of the image
+        return new Promise(function (resolve, reject) {
+            var worker = new Worker('js/color.js');
+            var colors = Array.from(Array(numberOfCols)).map(function (col, colNumber) {
+                var x = colNumber * TILE_WIDTH,
+                    y = rowNumber * TILE_HEIGHT;
+                return ctx.getImageData(
+                    x,
+                    y,
                     Math.min(TILE_WIDTH, width - x),
                     Math.min(TILE_HEIGHT, height - y)
-                ).data
-            ));
-        }
-        matrix.push(row);
-    }
-
-
-    return matrix;
+                ).data;
+            });
+            worker.addEventListener('message', function (event) {
+                resolve(event.data);
+            });
+            worker.postMessage(colors);
+        });
+    });
 
 }
 
@@ -137,9 +141,11 @@ function constructColorMatrix(image) {
  */
 function fetchRow(colorRow) {
 
-    var promises = colorRow.map(fetchTile);
-
-    return Promise.all(promises);
+    return new Promise(function (resolve, reject) {
+        Promise.all(
+            colorRow.map(fetchTile)
+        ).then(resolve);
+    });
 
 }
 
@@ -156,36 +162,6 @@ function fetchTile(color) {
     return fetch(url).then(function (response) {
         return response.text();
     });
-
-}
-
-/**
- * Given an array of bytes,x
- */
-function averageColor(bytes) {
-
-    var rgbSum, i,
-        INCREMENT = 4;
-
-    if (bytes.length % INCREMENT !== 0) { // Must be a sequence of quadruples (R, G, B, A)
-        throw Error('Pixel bytes not a multiple of four');
-    }
-
-    // Sum each of the primary colors: red, green and blue
-    rgbSum = [0, 0, 0];
-
-    for (i = 0; i < bytes.length; i += INCREMENT) {
-        rgbSum[0] += bytes[i];
-        rgbSum[1] += bytes[i + 1];
-        rgbSum[2] += bytes[i + 2];
-    }
-
-    // Converts three sums to a single average string
-    return rgbSum.map(function (sum) {
-        var average = Math.round(sum * INCREMENT / bytes.length);
-        var hex = average.toString(16); // convert to hexadecimal
-        return average <= 0x0F ? '0' + hex : hex; // add leading zero if necessary
-    }).join('');
 
 }
 
@@ -211,10 +187,10 @@ function createRowAppender(elem) {
 
 function createRowHandler(appendRow) {
 
-    return function handleRow(colorMatrix) {
+    return function handleRow(colorRows) {
 
         // stop when there's no more rows to print
-        if (colorMatrix.length === 0) {
+        if (colorRows.length === 0) {
             return;
         }
 
@@ -222,14 +198,17 @@ function createRowHandler(appendRow) {
         //
         // Only fetch and print the first row,
         // recursively fetch and print the rest
-        fetchRow(colorMatrix[0]).then(function (content) {
-            appendRow(content);
-            handleRow(colorMatrix.slice(1));
-        });
+        colorRows[0]
+            .then(fetchRow)
+            .then(function (content) {
+                appendRow(content);
+                handleRow(colorRows.slice(1));
+            });
 
     };
 
 }
+
 document.addEventListener('DOMContentLoaded', function () {
 
     var input, output, displayError, appendRow;
@@ -246,8 +225,8 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(readFile)
         .then(readImage)
-        .then(constructColorMatrix)
+        .then(constructColorRow)
         .then(createRowHandler(appendRow))
-        .catch(displayError);
+        //.catch(displayError);
 
 });
