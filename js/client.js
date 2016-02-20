@@ -140,13 +140,7 @@ function constructColorRow(image) {
  * that resolves to an array of tiles
  */
 function fetchRow(colorRow) {
-
-    return new Promise(function (resolve, reject) {
-        Promise.all(
-            colorRow.map(fetchTile)
-        ).then(resolve);
-    });
-
+    return Promise.all(colorRow.map(fetchTile));
 }
 
 /**
