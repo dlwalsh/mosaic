@@ -7,7 +7,7 @@ var TILE_HEIGHT = TILE_HEIGHT || 16;
  */
 function receiveInput(input) {
 
-    var promise = new Promise(function (resolve, reject) {
+    return new Promise(function (resolve, reject) {
 
         input.addEventListener('change', function (event) {
 
@@ -27,8 +27,6 @@ function receiveInput(input) {
 
     });
 
-    return promise;
-
 }
 
 /**
@@ -37,23 +35,16 @@ function receiveInput(input) {
  */
 function readFile(file) {
 
-    var reader, promise;
+    return new Promise(function (resolve, reject) {
 
-    reader = new FileReader();
+        var reader = new FileReader();
 
-    promise = new Promise(function (resolve, reject) {
-
-        reader.addEventListener('load', function (event) {
-
+        reader.addEventListener('load', function () {
             resolve(reader.result);
-
         });
+        reader.readAsDataURL(file);
 
     });
-
-    reader.readAsDataURL(file);
-
-    return promise;
 
 }
 
@@ -63,22 +54,16 @@ function readFile(file) {
  */
 function readImage(content) {
 
-    var promise, image;
+    return new Promise(function (resolve, reject) {
 
-    image = new Image();
-    image.src = content;
+        var image = new Image();
+        image.src = content;
 
-    promise = new Promise(function (resolve, reject) {
-
-        image.addEventListener('load', function (event) {
-
+        image.addEventListener('load', function () {
             resolve(image);
-
         });
 
     });
-
-    return promise;
 
 }
 
