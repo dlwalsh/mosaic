@@ -74,25 +74,19 @@ function readImage(content) {
  */
 function constructColorRow(image) {
 
-    var canvas, ctx, matrix, width, height,
-        promiseArray, numberOfRows, numberOfCols;
+    var imageData, numberOfRows, numberOfCols;
 
     // Need to cache width and height of original image
     // for the sake of the canvas drawn below
-    width = image.width;
-    height = image.height;
+    imageData = canvasImageData(image, {
+        tileWidth: TILE_WIDTH,
+        tileHeight: TILE_HEIGHT
+    });
 
     // Use canvas API to convert the image into RGBA bitmap
 
-    canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-
-    ctx = canvas.getContext('2d');
-    ctx.drawImage(image, 0, 0);
-
-    numberOfRows = Math.ceil(height / TILE_HEIGHT);
-    numberOfCols = Math.ceil(width / TILE_WIDTH);
+    numberOfRows = Math.ceil(image.height / TILE_HEIGHT);
+    numberOfCols = Math.ceil(image.width / TILE_WIDTH);
 
     return Array.from(Array(numberOfRows)).map(function (row, rowNumber) {
         // Slice the image at the particular tile we desire
@@ -101,14 +95,7 @@ function constructColorRow(image) {
         return new Promise(function (resolve, reject) {
             var worker = new Worker('js/color.js');
             var colors = Array.from(Array(numberOfCols)).map(function (col, colNumber) {
-                var x = colNumber * TILE_WIDTH,
-                    y = rowNumber * TILE_HEIGHT;
-                return ctx.getImageData(
-                    x,
-                    y,
-                    Math.min(TILE_WIDTH, width - x),
-                    Math.min(TILE_HEIGHT, height - y)
-                ).data;
+                return imageData(colNumber * TILE_WIDTH, rowNumber * TILE_HEIGHT);
             });
             worker.addEventListener('message', function (event) {
                 resolve(event.data);
@@ -116,6 +103,31 @@ function constructColorRow(image) {
             worker.postMessage(colors);
         });
     });
+
+}
+
+function canvasImageData(image, options) {
+
+    var canvas, ctx, width, height;
+
+    width = image.width;
+    height = image.height;
+
+    canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0);
+
+    return function (x, y) {
+        return ctx.getImageData(
+            x,
+            y,
+            Math.min(options.tileWidth, width - x),
+            Math.min(options.tileHeight, height - y)
+        ).data;
+    };
 
 }
 
